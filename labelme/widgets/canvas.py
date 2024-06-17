@@ -773,17 +773,18 @@ class Canvas(QtWidgets.QWidget):
             if (shape.selected or not self._hideBackround) and self.isVisible(shape):
                 shape.fill = shape.selected or shape == self.hShape
                 if shape.shape_type != "patch_annotation":
+                    #점찍은 곳에 색깔 x
                     shape.paint(p)
 
         if (self.fillDrawing() and self.createMode == "patch_annotation"):
             class_colors = {
                 0: QtGui.QColor(0, 0, 0, 0),
-                1: {1: QtGui.QColor(255, 0, 0, 150), 2: QtGui.QColor(255, 0, 0, 200)}, 
-                2: {1: QtGui.QColor(0, 255, 0, 150), 2: QtGui.QColor(0, 255, 0, 200)}, 
-                3: {1: QtGui.QColor(0, 0, 255, 150), 2: QtGui.QColor(0, 0, 255, 200)}, 
-                4: {1: QtGui.QColor(255, 255, 0, 150), 2: QtGui.QColor(255, 255, 0, 200)}, 
-                5: {1: QtGui.QColor(255, 0, 255, 150), 2: QtGui.QColor(255, 0, 255, 200)}, 
-                6: {1: QtGui.QColor(0, 255, 255, 150), 2: QtGui.QColor(0, 255, 255, 200)}  
+                1: {1: QtGui.QColor(255, 0, 0, 90), 2: QtGui.QColor(255, 0, 0, 180)}, 
+                2: {1: QtGui.QColor(0, 255, 0, 90), 2: QtGui.QColor(0, 255, 0, 180)}, 
+                3: {1: QtGui.QColor(0, 0, 255, 90), 2: QtGui.QColor(0, 0, 255, 180)}, 
+                4: {1: QtGui.QColor(255, 255, 0, 90), 2: QtGui.QColor(255, 255, 0, 180)}, 
+                5: {1: QtGui.QColor(255, 0, 255, 90), 2: QtGui.QColor(255, 0, 255, 180)}, 
+                6: {1: QtGui.QColor(0, 255, 255, 90), 2: QtGui.QColor(0, 255, 255, 180)}  
             }
             for shape in self.shapes:
                 if (shape.selected or not self._hideBackround) and self.isVisible(shape):
@@ -1158,13 +1159,14 @@ class Canvas(QtWidgets.QWidget):
 
     def loadPixmap(self, pixmap, clear_shapes=True):
         self.pixmap = pixmap
-        self.drawGridOnPixmap()
+        
         if self._ai_model:
             self._ai_model.set_image(
                 image=labelme.utils.img_qt_to_arr(self.pixmap.toImage())
             )
         if clear_shapes:
             self.shapes = []
+        self.drawGridOnPixmap()
         self.mask_label = self.initialize_mask()
         self.update()
 
@@ -1197,3 +1199,6 @@ class Canvas(QtWidgets.QWidget):
         self.pixmap = None
         self.shapesBackups = []
         self.update()
+
+    def get_mask_label(self):
+        return self.mask_label

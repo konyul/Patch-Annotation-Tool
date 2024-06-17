@@ -65,7 +65,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if config is None:
             config = get_config()
         self._config = config
-
+        self._config["store_data"] = False
+        
         # set default shape colors
         Shape.line_color = QtGui.QColor(*self._config["shape"]["line_color"])
         Shape.fill_color = QtGui.QColor(*self._config["shape"]["fill_color"])
@@ -174,8 +175,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.intensity_labels = []
         self.intensity_color_map = {
             "CLEAN": 0,
-            "BLURRY": 150,
-            "BLOCKAGE": 200,
+            "BLURRY": 40,
+            "BLOCKAGE": 180,
         }
         self.intensity_key_list=list(self.intensity_color_map.keys())
 
@@ -1321,13 +1322,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.actions.duplicate.setEnabled(n_selected)
         self.actions.copy.setEnabled(n_selected)
         self.actions.edit.setEnabled(n_selected == 1)
+    
+    def debug_trace(self):
+        '''Set a tracepoint in the Python debugger that works with Qt'''
+        from PyQt5.QtCore import pyqtRemoveInputHook
+        from pdb import set_trace
+        pyqtRemoveInputHook()
+        set_trace()
 
     def addLabel(self, shape):
         if shape.group_id is None:
             text = shape.label
         else:
             text = "{} ({})".format(shape.label, shape.group_id)
+
         label_list_item = LabelListWidgetItem(text, shape)
+
         self.labelList.addItem(label_list_item)
         if self.uniqLabelList.findItemByLabel(shape.label) is None:
             item = self.uniqLabelList.createItemFromLabel(shape.label)
@@ -1427,6 +1437,13 @@ class MainWindow(QtWidgets.QMainWindow):
             s.append(shape)
         self.loadShapes(s)
 
+    def debug_trace(self):
+        '''Set a tracepoint in the Python debugger that works with Qt'''
+        from PyQt5.QtCore import pyqtRemoveInputHook
+        from pdb import set_trace
+        pyqtRemoveInputHook()
+        set_trace()
+
     def loadFlags(self, flags):
         self.flag_widget.clear()
         for key, flag in flags.items():
@@ -1452,8 +1469,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 )
             )
             return data
-
         shapes = [format_shape(item.shape()) for item in self.labelList]
+        #shapes = [[format_shape(item.shape()) for item in self.labelList][-1]]
         flags = {}
         for i in range(self.flag_widget.count()):
             item = self.flag_widget.item(i)
@@ -1467,6 +1484,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 os.makedirs(osp.dirname(filename))
             lf.save(
                 filename=filename,
+                patch=self.canvas.get_mask_label(),
                 shapes=shapes,
                 imagePath=imagePath,
                 imageData=imageData,

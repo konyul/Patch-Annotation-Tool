@@ -65,9 +65,17 @@ class LabelFile(object):
             f.seek(0)
             return f.read()
 
+    def debug_trace(self):
+        '''Set a tracepoint in the Python debugger that works with Qt'''
+        from PyQt5.QtCore import pyqtRemoveInputHook
+        from pdb import set_trace
+        pyqtRemoveInputHook()
+        set_trace()
+
     def load(self, filename):
         keys = [
             "version",
+            "patch",
             "imageData",
             "imagePath",
             "shapes",  # polygonal annotations
@@ -87,7 +95,7 @@ class LabelFile(object):
         try:
             with open(filename, "r") as f:
                 data = json.load(f)
-
+            
             if data["imageData"] is not None:
                 imageData = base64.b64decode(data["imageData"])
                 if PY2 and QT4:
@@ -105,16 +113,16 @@ class LabelFile(object):
             )
             shapes = [
                 dict(
-                    label=s["label"],
-                    points=s["points"],
-                    shape_type=s.get("shape_type", "polygon"),
-                    flags=s.get("flags", {}),
-                    description=s.get("description"),
-                    group_id=s.get("group_id"),
-                    mask=utils.img_b64_to_arr(s["mask"]) if s.get("mask") else None,
-                    other_data={k: v for k, v in s.items() if k not in shape_keys},
+                    label=data_s["label"],
+                    points=data_s["points"],
+                    shape_type=data_s.get("shape_type", "polygon"),
+                    flags=data_s.get("flags", {}),
+                    description=data_s.get("description"),
+                    group_id=data_s.get("group_id"),
+                    mask=utils.img_b64_to_arr(data_s["mask"]) if data_s.get("mask") else None,
+                    other_data={k: v for k, v in data_s.items() if k not in shape_keys},
                 )
-                for s in data["shapes"]
+                for data_s in data["shapes"]
             ]
         except Exception as e:
             raise LabelFileError(e)
@@ -152,6 +160,7 @@ class LabelFile(object):
     def save(
         self,
         filename,
+        patch,
         shapes,
         imagePath,
         imageHeight,
@@ -170,8 +179,9 @@ class LabelFile(object):
         if flags is None:
             flags = {}
         data = dict(
-            version=__version__,
-            flags=flags,
+            # version=__version__,
+            # flags=flags,
+            patch=patch,
             shapes=shapes,
             imagePath=imagePath,
             imageData=imageData,
