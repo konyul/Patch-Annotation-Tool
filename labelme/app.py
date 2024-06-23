@@ -48,6 +48,8 @@ LABEL_COLORMAP = imgviz.label_colormap()
 class MainWindow(QtWidgets.QMainWindow):
     FIT_WINDOW, FIT_WIDTH, MANUAL_ZOOM = 0, 1, 2
 
+    patchSizeChanged = QtCore.Signal(int, int)
+
     def __init__(
         self,
         config=None,
@@ -191,18 +193,34 @@ class MainWindow(QtWidgets.QMainWindow):
             label.setPalette(palette)
             corruption_layout.addWidget(label)
             self.intensity_labels.append(label)
+        
+        # Patch size default 지정
+        self.patch_width = 16
+        self.patch_height = 16
+
+        self.patchWidthLabel = QtWidgets.QLabel('Patch Width:')
+        self.patchWidthInput = QtWidgets.QLineEdit(str(self.patch_width))
+        self.patchHeightLabel = QtWidgets.QLabel('Patch Height:')
+        self.patchHeightInput = QtWidgets.QLineEdit(str(self.patch_height))
+
+        corruption_layout.addWidget(self.patchWidthLabel)
+        corruption_layout.addWidget(self.patchWidthInput)
+        corruption_layout.addWidget(self.patchHeightLabel)
+        corruption_layout.addWidget(self.patchHeightInput)
+
+        # Connect signals for patch size inputs
+        self.patchWidthInput.textChanged.connect(self.updatePatchSize)
+        self.patchHeightInput.textChanged.connect(self.updatePatchSize)
 
         #위쪽으로 딱 붙게
         corruption_layout.addStretch()
-
         corruption_widget = QtWidgets.QWidget()
         corruption_widget.setLayout(corruption_layout)
         self.corruption_dock.setWidget(corruption_widget)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.corruption_dock)
-
         self.class_combo.currentIndexChanged.connect(self.updateSelectionColor)
         self.intensity_combo.currentIndexChanged.connect(self.updateSelectionColor)
-
+        
         self.uniqLabelList = UniqueLabelQListWidget()
         self.uniqLabelList.setToolTip(
             self.tr(
@@ -246,6 +264,7 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         self.canvas.classAndIntensityChanged.connect(self.updateClassAndIntensity)
         self.canvas.zoomRequest.connect(self.zoomRequest)
+        self.patchSizeChanged.connect(self.canvas.update_patch_size)
 
         scrollArea = QtWidgets.QScrollArea()
         scrollArea.setWidget(self.canvas)
@@ -985,6 +1004,14 @@ class MainWindow(QtWidgets.QMainWindow):
         # self.firstStart = True
         # if self.firstStart:
         #    QWhatsThis.enterWhatsThisMode()
+
+    def updatePatchSize(self):
+        try:
+            self.patch_width = int(self.patchWidthInput.text())
+            self.patch_height = int(self.patchHeightInput.text())
+            self.patchSizeChanged.emit(self.patch_width, self.patch_height)
+        except ValueError:
+            pass  # handle invalid input if necessary
 
     def updateClassAndIntensity(self, class_text, intensity_text):
         if class_text:

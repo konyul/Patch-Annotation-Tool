@@ -34,6 +34,8 @@ class Canvas(QtWidgets.QWidget):
     drawingPolygon = QtCore.Signal(bool)
     vertexSelected = QtCore.Signal(bool)
     classAndIntensityChanged = QtCore.Signal(str, str)
+
+    
     CREATE, EDIT = 0, 1
 
     # polygon, rectangle, line, or point
@@ -104,6 +106,11 @@ class Canvas(QtWidgets.QWidget):
         self.setFocusPolicy(QtCore.Qt.WheelFocus)
 
         self._ai_model = None
+
+        self.patch_width = 16
+        self.patch_height = 16
+
+        
 
     def fillDrawing(self):
         return self._fill_drawing
@@ -307,6 +314,11 @@ class Canvas(QtWidgets.QWidget):
                 self.line.points = [self.current[0]]
                 self.line.point_labels = [1]
                 self.line.close()
+            elif self.createMode == "patch_annotation" and is_shift_pressed:
+                self.current.addPoint(pos, label=1)  # Add points while dragging
+                self.update()
+
+                
             assert len(self.line.points) == len(self.line.point_labels)
             self.repaint()
             self.current.highlightClear()
@@ -501,6 +513,17 @@ class Canvas(QtWidgets.QWidget):
                 self.repaint()
             self.prevPoint = pos
 
+    # def updatePatchSize(self, width, height):
+    #     self.patch_width = width
+    #     self.patch_height = height
+    #     self.updateGrid()
+
+    def update_patch_size(self, patch_width, patch_height):
+        self.patch_width = patch_width
+        self.patch_height = patch_height
+        self.mask_label = self.initialize_mask(self.patch_width, self.patch_height)
+        self.update()
+
     def drawGridOnPixmap(self):
         if not self.pixmap:
             return
@@ -511,11 +534,12 @@ class Canvas(QtWidgets.QWidget):
 
         width = self.pixmap.width()
         height = self.pixmap.height()
-        h_step = width // 16
-        v_step = height // 16
-
-        for i in range(1, 16):
+        h_step = width // self.patch_width
+        v_step = height // self.patch_height
+        # self.debug_trace()
+        for i in range(1, self.patch_width):
             painter.drawLine(QPoint(i * h_step, 0), QPoint(i * h_step, height))
+        for i in range(1, self.patch_height):
             painter.drawLine(QPoint(0, i * v_step), QPoint(width, i * v_step))
 
         painter.end()
@@ -713,8 +737,8 @@ class Canvas(QtWidgets.QWidget):
         for row in self.mask_label:
             print(' '.join(str(cell) for cell in row))
 
-    def initialize_mask(self):
-        return [[[0, 0] for _ in range(16)] for _ in range(16)]
+    def initialize_mask(self,width,height):
+        return [[[0, 0] for _ in range(width)] for _ in range(height)]
     
     def set_mask_label(self, i, j, label):
         if label[0] == '0':
@@ -722,6 +746,7 @@ class Canvas(QtWidgets.QWidget):
         elif label[0].isdigit():
             first_digit = int(label[0])
             second_digit = {'q': 1, 'w': 2, 'e': 3, 'r': 4}[label[1]]
+            # self.debug_trace()
             self.mask_label[i][j] = [first_digit, second_digit]
 
 
@@ -792,9 +817,10 @@ class Canvas(QtWidgets.QWidget):
                     shape.paint(p)
                     # self.debug_trace()
                     if shape.shape_type == "patch_annotation":
-                        mask = shape_to_mask((self.pixmap.height(), self.pixmap.width()), shape.points, shape_type="patch_annotation")
-                        patch_size_h = self.pixmap.height() // 16
-                        patch_size_w = self.pixmap.width() // 16
+                        mask = shape_to_mask((self.pixmap.height(), self.pixmap.width()), shape.points, shape_type="patch_annotation",
+                                             patch_width=self.patch_width,patch_height=self.patch_height)
+                        patch_size_h = self.pixmap.height() // self.patch_height
+                        patch_size_w = self.pixmap.width() // self.patch_width
                         if shape.label:
                             for i in range(mask.shape[0]):
                                 for j in range(mask.shape[1]):
@@ -1167,7 +1193,7 @@ class Canvas(QtWidgets.QWidget):
         if clear_shapes:
             self.shapes = []
         self.drawGridOnPixmap()
-        self.mask_label = self.initialize_mask()
+        self.mask_label = self.initialize_mask(self.patch_width, self.patch_height)
         self.update()
 
     def loadShapes(self, shapes, replace=True):

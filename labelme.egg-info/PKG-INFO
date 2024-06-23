@@ -50,17 +50,17 @@ conda activate {가상환경명}
 
 디렉토리 생성
 ```
-git clone https://github.com/konyul/Pixel-Annotation-Tool.git
+git clone https://github.com/konyul/Patch-Annotation-Tool.git
 ```
 
 
 환경 설정
 ```
-cd Pixel-Annotation-Tool
+cd Patch-Annotation-Tool
 pip install -e .
 ```
 
-명령어 실행 (Pixel-Annotation-Tool 외부 폴더에서 실행)
+명령어 실행 (Patch-Annotation-Tool 외부 폴더에서 실행)
 ```
 labelme
 ```

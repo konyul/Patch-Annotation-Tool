@@ -18,10 +18,10 @@ def qpoints_to_tuples(points):
     """Convert a list of QPointF to tuples."""
     return [(point.x(), point.y()) for point in points]
 
-def shape_to_mask(img_shape, points, shape_type=None, line_width=10, point_size=5):
-    patch_size_h = img_shape[0] // 16
-    patch_size_w = img_shape[1] // 16
-    mask = np.zeros((16, 16), dtype=np.uint8)
+def shape_to_mask(img_shape, points, shape_type=None, line_width=10, point_size=5, patch_width=16, patch_height=16):
+    patch_size_h = img_shape[0] // patch_height
+    patch_size_w = img_shape[1] // patch_width
+    mask = np.zeros((patch_height, patch_width), dtype=np.uint8)
     xy = qpoints_to_tuples(points)
     
     if shape_type == "patch_annotation":
@@ -30,7 +30,7 @@ def shape_to_mask(img_shape, points, shape_type=None, line_width=10, point_size=
             patch_x = int(cx // patch_size_w)
             patch_y = int(cy // patch_size_h)
             
-            if 0 <= patch_x < 16 and 0 <= patch_y < 16:
+            if 0 <= patch_x < patch_width and 0 <= patch_y < patch_height:
                 mask[patch_y, patch_x] = 1
         return mask
     else:
