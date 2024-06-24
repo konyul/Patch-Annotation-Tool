@@ -1060,7 +1060,8 @@ class MainWindow(QtWidgets.QMainWindow):
             label.setPalette(palette)
 
         self.canvas.intensity = self.intensity_color_map.get(self.intensity_combo.currentText(), 255)
-        self.canvas.update()
+        # 키보드로 class 변경시 모든 패치 색깔 날라감
+        #self.canvas.update()
 
     def menu(self, title, actions=None):
         menu = self.menuBar().addMenu(title)
@@ -1741,6 +1742,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def loadFile(self, filename=None):
         """Load the specified file, or the last opened file if None."""
+            
         # changing fileListWidget loads file
         if filename in self.imageList and (
             self.fileListWidget.currentRow() != self.imageList.index(filename)
@@ -2057,6 +2059,7 @@ class MainWindow(QtWidgets.QMainWindow):
             # retain currently selected file
             self.fileListWidget.setCurrentRow(self.imageList.index(current_filename))
             self.fileListWidget.repaint()
+            
 
     def saveFile(self, _value=False):
         assert not self.image.isNull(), "cannot save empty image"

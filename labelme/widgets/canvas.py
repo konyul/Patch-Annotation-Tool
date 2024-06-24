@@ -11,7 +11,8 @@ from labelme.shape import Shape
 from qtpy.QtCore import Qt, QPoint
 from qtpy.QtGui import QPainter, QColor, QPen, QPixmap
 from labelme.utils.shape import shape_to_mask
-
+from collections import defaultdict
+import numpy as np
 # TODO(unknown):
 # - [maybe] Find optimal epsilon value.
 
@@ -109,7 +110,7 @@ class Canvas(QtWidgets.QWidget):
 
         self.patch_width = 16
         self.patch_height = 16
-
+        self.previous_masks = {} 
         
 
     def fillDrawing(self):
@@ -201,7 +202,7 @@ class Canvas(QtWidgets.QWidget):
         self.selectedShapes = []
         for shape in self.shapes:
             shape.selected = False
-        self.update()
+        #self.update()
 
     def enterEvent(self, ev):
         self.overrideCursor(self._cursor)
@@ -235,7 +236,7 @@ class Canvas(QtWidgets.QWidget):
     def unHighlight(self):
         if self.hShape:
             self.hShape.highlightClear()
-            self.update()
+            #self.update()
         self.prevhShape = self.hShape
         self.prevhVertex = self.hVertex
         self.prevhEdge = self.hEdge
@@ -262,6 +263,19 @@ class Canvas(QtWidgets.QWidget):
 
         is_shift_pressed = ev.modifiers() & QtCore.Qt.ShiftModifier
 
+        if self.drawing() and self.createMode == "patch_annotation" and is_shift_pressed:
+            self.overrideCursor(CURSOR_DRAW)
+            if not self.current:
+                #self.repaint()
+                return
+
+            if self.outOfPixmap(pos):
+                pos = self.intersectionPoint(self.current[-1], pos)
+
+            self.current.addPoint(pos)
+            #self.repaint()
+            return
+        
         # Polygon drawing.
         if self.drawing():
             if self.createMode in ["ai_polygon", "ai_mask"]:
@@ -271,7 +285,7 @@ class Canvas(QtWidgets.QWidget):
 
             self.overrideCursor(CURSOR_DRAW)
             if not self.current:
-                self.repaint()  # draw crosshair
+                #self.repaint()  # draw crosshair
                 return
 
             if self.outOfPixmap(pos):
@@ -289,6 +303,8 @@ class Canvas(QtWidgets.QWidget):
                 pos = self.current[0]
                 self.overrideCursor(CURSOR_POINT)
                 self.current.highlightVertex(0, Shape.NEAR_VERTEX)
+
+
             if self.createMode in ["polygon", "linestrip"]:
                 self.line.points = [self.current[-1], pos]
                 self.line.point_labels = [1, 1]
@@ -316,11 +332,11 @@ class Canvas(QtWidgets.QWidget):
                 self.line.close()
             elif self.createMode == "patch_annotation" and is_shift_pressed:
                 self.current.addPoint(pos, label=1)  # Add points while dragging
-                self.update()
+                #self.update()
 
                 
             assert len(self.line.points) == len(self.line.point_labels)
-            self.repaint()
+            #self.repaint()
             self.current.highlightClear()
             return
 
@@ -329,22 +345,22 @@ class Canvas(QtWidgets.QWidget):
             if self.selectedShapesCopy and self.prevPoint:
                 self.overrideCursor(CURSOR_MOVE)
                 self.boundedMoveShapes(self.selectedShapesCopy, pos)
-                self.repaint()
+                #self.repaint()
             elif self.selectedShapes:
                 self.selectedShapesCopy = [s.copy() for s in self.selectedShapes]
-                self.repaint()
+                #self.repaint()
             return
 
         # Polygon/Vertex moving.
         if QtCore.Qt.LeftButton & ev.buttons():
             if self.selectedVertex():
                 self.boundedMoveVertex(pos)
-                self.repaint()
+                #self.repaint()
                 self.movingShape = True
             elif self.selectedShapes and self.prevPoint:
                 self.overrideCursor(CURSOR_MOVE)
                 self.boundedMoveShapes(self.selectedShapes, pos)
-                self.repaint()
+                #self.repaint()
                 self.movingShape = True
             return
 
@@ -461,6 +477,10 @@ class Canvas(QtWidgets.QWidget):
                         self.line.point_labels[0] = self.current.point_labels[-1]
                         if ev.modifiers() & QtCore.Qt.ControlModifier:
                             self.finalise()
+                    elif self.createMode == "patch_annotation" and is_shift_pressed:
+                        self.current.addPoint(self.line[1])
+                        self.line[0] = self.current[-1]
+
                 elif not self.outOfPixmap(pos):
                     # Create new shape.
                     self.current = Shape(
@@ -469,8 +489,16 @@ class Canvas(QtWidgets.QWidget):
                         else self.createMode
                     )
                     self.current.addPoint(pos, label=0 if is_shift_pressed else 1)
-                    if self.createMode == "point" or self.createMode =="patch_annotation":
+                    if self.createMode == "point":
                         self.finalise()
+                    if self.createMode =="patch_annotation":
+                        if is_shift_pressed:
+                            self.line.points = [pos, pos]
+                            self.line.point_labels = [1, 1]
+                            self.setHiding()
+                            self.drawingPolygon.emit(True)
+                        else:
+                            self.finalise()
                     elif (
                         self.createMode in ["ai_polygon", "ai_mask"]
                         and ev.modifiers() & QtCore.Qt.ControlModifier
@@ -503,14 +531,14 @@ class Canvas(QtWidgets.QWidget):
                 group_mode = int(ev.modifiers()) == QtCore.Qt.ControlModifier
                 self.selectShapePoint(pos, multiple_selection_mode=group_mode)
                 self.prevPoint = pos
-                self.repaint()
+                #self.repaint()
         elif ev.button() == QtCore.Qt.RightButton and self.editing():
             group_mode = int(ev.modifiers()) == QtCore.Qt.ControlModifier
             if not self.selectedShapes or (
                 self.hShape is not None and self.hShape not in self.selectedShapes
             ):
                 self.selectShapePoint(pos, multiple_selection_mode=group_mode)
-                self.repaint()
+                #self.repaint()
             self.prevPoint = pos
 
     # def updatePatchSize(self, width, height):
@@ -529,7 +557,7 @@ class Canvas(QtWidgets.QWidget):
             return
 
         painter = QPainter(self.pixmap)
-        pen = QPen(QColor(0, 255, 0), 2, Qt.SolidLine) 
+        pen = QPen(QColor(0, 255, 0), 3, Qt.SolidLine) 
         painter.setPen(pen)
 
         width = self.pixmap.width()
@@ -551,7 +579,7 @@ class Canvas(QtWidgets.QWidget):
             if not menu.exec_(self.mapToGlobal(ev.pos())) and self.selectedShapesCopy:
                 # Cancel the move by deleting the shadow copy.
                 self.selectedShapesCopy = []
-                self.repaint()
+                #self.repaint()
         elif ev.button() == QtCore.Qt.LeftButton:
             if self.editing():
                 if (
@@ -583,7 +611,7 @@ class Canvas(QtWidgets.QWidget):
             for i, shape in enumerate(self.selectedShapesCopy):
                 self.selectedShapes[i].points = shape.points
         self.selectedShapesCopy = []
-        self.repaint()
+        #self.repaint()
         self.storeShapes()
         return True
 
@@ -821,22 +849,31 @@ class Canvas(QtWidgets.QWidget):
                                              patch_width=self.patch_width,patch_height=self.patch_height)
                         patch_size_h = self.pixmap.height() // self.patch_height
                         patch_size_w = self.pixmap.width() // self.patch_width
-                        if shape.label:
-                            for i in range(mask.shape[0]):
-                                for j in range(mask.shape[1]):
-                                    if mask[i, j]:
-                                        self.set_mask_label(i, j, shape.label)
-                                        label = self.mask_label[i][j]
-                                        first_digit = label[0]
-                                        second_digit = label[1]
-                                        if first_digit == 0:
-                                            color = class_colors[first_digit]
-                                        else:
-                                            color = class_colors[first_digit][second_digit]
-                                        p.fillRect(j * patch_size_w, i * patch_size_h, patch_size_w, patch_size_h, color)
+                        previous_mask = self.previous_masks.get(shape)
+                        if previous_mask is None or not np.array_equal(mask, previous_mask):
+                            self.previous_masks[shape] = mask  # 현재 마스크를 저장
+                            
+                            if mask.sum() != 0 and shape.label:
+                                for i in range(mask.shape[0]):
+                                    for j in range(mask.shape[1]):
+                                        if mask[i, j]:
+                                            self.set_mask_label(i, j, shape.label)
 
-                        self.print_mask()
-                        print('\n')
+            if shape.label:
+                for i in range(mask.shape[0]):
+                    for j in range(mask.shape[1]):
+                        if self.mask_label[i][j][0]!=0:
+                            label = self.mask_label[i][j]
+                            first_digit = label[0]
+                            second_digit = label[1]
+                            if first_digit == 0:
+                                color = class_colors[first_digit]
+                            else:
+                                color = class_colors[first_digit][second_digit]
+                            p.fillRect(j * patch_size_w, i * patch_size_h, patch_size_w, patch_size_h, color)
+                            print(f'{i},{j} 칠하는중')
+                self.print_mask()
+                print('\n')
 
 
         if self.current:
@@ -921,7 +958,7 @@ class Canvas(QtWidgets.QWidget):
         w, h = self.pixmap.width(), self.pixmap.height()
         return not (0 <= p.x() <= w - 1 and 0 <= p.y() <= h - 1)
 
-    def finalise(self):
+    def finalise(self, drag=False):
         assert self.current
         if self.createMode == "ai_polygon":
             # convert points to polygon by an AI model
@@ -1073,7 +1110,7 @@ class Canvas(QtWidgets.QWidget):
     def moveByKeyboard(self, offset):
         if self.selectedShapes:
             self.boundedMoveShapes(self.selectedShapes, self.prevPoint + offset)
-            self.repaint()
+            #self.repaint()
             self.movingShape = True
     
     def keyPressEvent(self, ev):
@@ -1085,7 +1122,7 @@ class Canvas(QtWidgets.QWidget):
             if key == QtCore.Qt.Key_Escape and self.current:
                 self.current = None
                 self.drawingPolygon.emit(False)
-                self.update()
+                #self.update()
             elif key == QtCore.Qt.Key_Return and self.canCloseShape():
                 self.finalise()
             elif modifiers == QtCore.Qt.AltModifier:
@@ -1099,7 +1136,6 @@ class Canvas(QtWidgets.QWidget):
             elif key == QtCore.Qt.Key_0:
                 class_text = "CLEAN"
                 intensity_text = "CLEAN"
-                
             #print(class_text)
             #print(intensity_text)
             if class_text or intensity_text:
