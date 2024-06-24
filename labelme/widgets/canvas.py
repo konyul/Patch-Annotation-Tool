@@ -871,7 +871,7 @@ class Canvas(QtWidgets.QWidget):
                             else:
                                 color = class_colors[first_digit][second_digit]
                             p.fillRect(j * patch_size_w, i * patch_size_h, patch_size_w, patch_size_h, color)
-                            print(f'{i},{j} 칠하는중')
+                            #print(f'{i},{j} 칠하는중')
                 self.print_mask()
                 print('\n')
 
