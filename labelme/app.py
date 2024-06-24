@@ -140,7 +140,8 @@ class MainWindow(QtWidgets.QMainWindow):
         class_label = QtWidgets.QLabel("Select Class:")
         corruption_layout.addWidget(class_label)
         self.class_combo = QtWidgets.QComboBox()
-        self.class_combo.addItems(["CLEAN", "class1", "class2", "class3", "class4", "class5", "class6"])
+        #self.class_combo.addItems(["CLEAN", "class1", "class2", "class3", "class4", "class5", "class6"])
+        self.class_combo.addItems(["CLEAN", "class1", "class2", "class3"])
         corruption_layout.addWidget(self.class_combo)
 
         # Create class labels
@@ -150,13 +151,14 @@ class MainWindow(QtWidgets.QMainWindow):
             "class1": QtGui.QColor(0, 255, 255),
             "class2": QtGui.QColor(255, 255, 0),
             "class3": QtGui.QColor(0, 0, 255),
-            "class4": QtGui.QColor(0, 255, 0),
-            "class5": QtGui.QColor(255, 0, 255),
-            "class6": QtGui.QColor(255, 0, 0),
+            #"class4": QtGui.QColor(0, 255, 0),
+            #"class5": QtGui.QColor(255, 0, 255),
+            #"class6": QtGui.QColor(255, 0, 0),
         }
         self.class_idx_list=list(self.class_color_map.keys())
 
-        for class_id in ["class1", "class2", "class3", "class4", "class5", "class6"]:
+        #for class_id in ["class1", "class2", "class3", "class4", "class5", "class6"]:
+        for class_id in ["class1", "class2", "class3"]:
             label = QtWidgets.QLabel(class_id)
             label.setAlignment(QtCore.Qt.AlignCenter)
             label.setFixedHeight(30)
@@ -1601,9 +1603,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 "class1": "1",
                 "class2": "2",
                 "class3": "3",
-                "class4": "4",
-                "class5": "5",
-                "class6": "6"
+                #"class4": "4",
+                #"class5": "5",
+                #"class6": "6"
             }
             intensity_map = {
                 "CLEAN": "",
