@@ -832,12 +832,12 @@ class Canvas(QtWidgets.QWidget):
         if (self.fillDrawing() and self.createMode == "patch_annotation"):
             class_colors = {
                 0: QtGui.QColor(0, 0, 0, 0),
-                1: {1: QtGui.QColor(255, 0, 0, 90), 2: QtGui.QColor(255, 0, 0, 180)}, 
-                2: {1: QtGui.QColor(0, 255, 0, 90), 2: QtGui.QColor(0, 255, 0, 180)}, 
+                1: {1: QtGui.QColor(0, 255, 255, 90), 2: QtGui.QColor(0, 255, 255, 180)},
+                2: {1: QtGui.QColor(255, 255, 0, 90), 2: QtGui.QColor(255, 255, 0, 180)}, 
                 3: {1: QtGui.QColor(0, 0, 255, 90), 2: QtGui.QColor(0, 0, 255, 180)}, 
-                4: {1: QtGui.QColor(255, 255, 0, 90), 2: QtGui.QColor(255, 255, 0, 180)}, 
+                4: {1: QtGui.QColor(0, 255, 0, 90), 2: QtGui.QColor(0, 255, 0, 180)}, 
                 5: {1: QtGui.QColor(255, 0, 255, 90), 2: QtGui.QColor(255, 0, 255, 180)}, 
-                6: {1: QtGui.QColor(0, 255, 255, 90), 2: QtGui.QColor(0, 255, 255, 180)}  
+                6: {1: QtGui.QColor(255, 0, 0, 90), 2: QtGui.QColor(255, 0, 0, 180)}, 
             }
             for shape in self.shapes:
                 if (shape.selected or not self._hideBackround) and self.isVisible(shape):

@@ -147,12 +147,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.class_labels = []
         self.class_color_map = {
             "CLEAN": QtGui.QColor(0, 0, 0),
-            "class1": QtGui.QColor(255, 0, 0),
-            "class2": QtGui.QColor(0, 255, 0),
+            "class1": QtGui.QColor(0, 255, 255),
+            "class2": QtGui.QColor(255, 255, 0),
             "class3": QtGui.QColor(0, 0, 255),
-            "class4": QtGui.QColor(255, 255, 0),
+            "class4": QtGui.QColor(0, 255, 0),
             "class5": QtGui.QColor(255, 0, 255),
-            "class6": QtGui.QColor(0, 255, 255),
+            "class6": QtGui.QColor(255, 0, 0),
         }
         self.class_idx_list=list(self.class_color_map.keys())
 
