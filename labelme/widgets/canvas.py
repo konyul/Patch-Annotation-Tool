@@ -858,22 +858,21 @@ class Canvas(QtWidgets.QWidget):
                                     for j in range(mask.shape[1]):
                                         if mask[i, j]:
                                             self.set_mask_label(i, j, shape.label)
-
-            if shape.label:
-                for i in range(mask.shape[0]):
-                    for j in range(mask.shape[1]):
-                        if self.mask_label[i][j][0]!=0:
-                            label = self.mask_label[i][j]
-                            first_digit = label[0]
-                            second_digit = label[1]
-                            if first_digit == 0:
-                                color = class_colors[first_digit]
-                            else:
-                                color = class_colors[first_digit][second_digit]
-                            p.fillRect(j * patch_size_w, i * patch_size_h, patch_size_w, patch_size_h, color)
-                            #print(f'{i},{j} 칠하는중')
-                self.print_mask()
-                print('\n')
+            #if shape.label:
+            for i in range(mask.shape[0]):
+                for j in range(mask.shape[1]):
+                    if self.mask_label[i][j][0]!=0:
+                        label = self.mask_label[i][j]
+                        first_digit = label[0]
+                        second_digit = label[1]
+                        if first_digit == 0:
+                            color = class_colors[first_digit]
+                        else:
+                            color = class_colors[first_digit][second_digit]
+                        p.fillRect(j * patch_size_w, i * patch_size_h, patch_size_w, patch_size_h, color)
+                        #print(f'{i},{j} 칠하는중')
+            self.print_mask()
+            print('\n')
 
 
         if self.current:
