@@ -8,7 +8,7 @@ Anaconda 설치
 
 Conda 가상환경 생성
 ```
-conda create --name={가상환경명} python=3
+conda create --name={가상환경명} python=3.9
 conda activate {가상환경명}
 ```
 
