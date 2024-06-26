@@ -25,7 +25,7 @@ def get_install_requires():
         "imgviz>=1.7.5",
         "matplotlib",
         "natsort>=7.1.0",
-        "numpy",
+        "numpy==1.26.4",
         "onnxruntime>=1.14.1,!=1.16.0",
         "Pillow>=2.8",
         "PyYAML",
