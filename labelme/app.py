@@ -281,6 +281,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.canvas.shapeMoved.connect(self.setDirty)
         self.canvas.selectionChanged.connect(self.shapeSelectionChanged)
         self.canvas.drawingPolygon.connect(self.toggleDrawingSensitive)
+        self.canvas.mouseBackButtonClicked.connect(self.undoShapeEdit)
 
         self.setCentralWidget(scrollArea)
 
@@ -1243,7 +1244,7 @@ class MainWindow(QtWidgets.QMainWindow):
             icon = utils.newIcon("labels")
             action = QtWidgets.QAction(
                 icon, "&%d %s" % (i + 1, QtCore.QFileInfo(f).fileName()), self
-            )
+        ) 
             action.triggered.connect(functools.partial(self.loadRecent, f))
             menu.addAction(action)
 
@@ -1550,7 +1551,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setDirty()
 
     def copySelectedShape(self):
+        print('들어오나?')
         self._copied_shapes = [s.copy() for s in self.canvas.selectedShapes]
+        self.debug_trace()
         self.actions.paste.setEnabled(len(self._copied_shapes) > 0)
 
     def labelSelectionChanged(self):
@@ -1618,7 +1621,6 @@ class MainWindow(QtWidgets.QMainWindow):
             intensity_label = intensity_map.get(intensity_text, "")
 
             patch_label = class_label + intensity_label
-            print(patch_label)
             text = patch_label
 
         elif self._config["display_label_popup"] or not text:
@@ -1973,6 +1975,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.loadFile(filename)
 
         self._config["keep_prev"] = keep_prev
+
 
     def openNextImg(self, _value=False, load=True):
         keep_prev = self._config["keep_prev"]

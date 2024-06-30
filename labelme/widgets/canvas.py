@@ -35,14 +35,15 @@ class Canvas(QtWidgets.QWidget):
     drawingPolygon = QtCore.Signal(bool)
     vertexSelected = QtCore.Signal(bool)
     classAndIntensityChanged = QtCore.Signal(str, str)
+    mouseBackButtonClicked = QtCore.Signal()
 
     
     CREATE, EDIT = 0, 1
-
+    
     # polygon, rectangle, line, or point
-    _createMode = "polygon"
-
+    _createMode = "patch_annotation"
     _fill_drawing = False
+    temp_mask_data=None
 
     def __init__(self, *args, **kwargs):
         self.epsilon = kwargs.pop("epsilon", 10.0)
@@ -110,7 +111,8 @@ class Canvas(QtWidgets.QWidget):
 
         self.patch_width = 16
         self.patch_height = 16
-        self.previous_masks = {} 
+        self.previous_masks = {}
+        self.shapes_visible = True
         
 
     def fillDrawing(self):
@@ -447,9 +449,9 @@ class Canvas(QtWidgets.QWidget):
             pos = self.transformPos(ev.localPos())
         else:
             pos = self.transformPos(ev.posF())
-
+        if ev.button() == QtCore.Qt.XButton1:
+            self.mouseBackButtonClicked.emit()
         is_shift_pressed = ev.modifiers() & QtCore.Qt.ShiftModifier
-
         if ev.button() == QtCore.Qt.LeftButton:
             if self.drawing():
                 if self.current:
@@ -774,9 +776,10 @@ class Canvas(QtWidgets.QWidget):
         elif label[0].isdigit():
             first_digit = int(label[0])
             second_digit = {'q': 1, 'w': 2, 'e': 3, 'r': 4}[label[1]]
-            # self.debug_trace()
-            self.mask_label[i][j] = [first_digit, second_digit]
-
+            if self.mask_label[i][j] == [first_digit, second_digit]:
+                self.mask_label[i][j] = [0, 0]
+            else:
+                self.mask_label[i][j] = [first_digit, second_digit]
 
     def debug_trace(self):
         '''Set a tracepoint in the Python debugger that works with Qt'''
@@ -821,60 +824,77 @@ class Canvas(QtWidgets.QWidget):
                 self.height() - 1,
             )
 
-        Shape.scale = self.scale
-        for shape in self.shapes:
-            if (shape.selected or not self._hideBackround) and self.isVisible(shape):
-                shape.fill = shape.selected or shape == self.hShape
-                if shape.shape_type != "patch_annotation":
-                    #점찍은 곳에 색깔 x
-                    shape.paint(p)
+        if not self.shapes_visible:
+            pen = QtGui.QPen(QtGui.QColor(0, 255, 0, 76))
+        else:
+            pen = QtGui.QPen(QtGui.QColor(0, 255, 0, 255))
+        pen.setWidth(3)
+        p.setPen(pen)
+        width = self.pixmap.width()
+        height = self.pixmap.height()
+        h_step = width // self.patch_width
+        v_step = height // self.patch_height
+        for i in range(1, self.patch_width):
+            p.drawLine(QPoint(i * h_step, 0), QPoint(i * h_step, height))
+        for i in range(1, self.patch_height):
+            p.drawLine(QPoint(0, i * v_step), QPoint(width, i * v_step))
+        
 
-        if (self.fillDrawing() and self.createMode == "patch_annotation"):
-            class_colors = {
-                0: QtGui.QColor(0, 0, 0, 0),
-                1: {1: QtGui.QColor(0, 255, 255, 90), 2: QtGui.QColor(0, 255, 255, 180)},
-                2: {1: QtGui.QColor(255, 255, 0, 90), 2: QtGui.QColor(255, 255, 0, 180)}, 
-                3: {1: QtGui.QColor(0, 0, 255, 90), 2: QtGui.QColor(0, 0, 255, 180)}, 
-                4: {1: QtGui.QColor(0, 255, 0, 90), 2: QtGui.QColor(0, 255, 0, 180)}, 
-                5: {1: QtGui.QColor(255, 0, 255, 90), 2: QtGui.QColor(255, 0, 255, 180)}, 
-                6: {1: QtGui.QColor(255, 0, 0, 90), 2: QtGui.QColor(255, 0, 0, 180)}, 
-            }
+        Shape.scale = self.scale
+        if self.shapes_visible:
             for shape in self.shapes:
                 if (shape.selected or not self._hideBackround) and self.isVisible(shape):
                     shape.fill = shape.selected or shape == self.hShape
-                    shape.paint(p)
-                    # self.debug_trace()
-                    if shape.shape_type == "patch_annotation":
-                        mask = shape_to_mask((self.pixmap.height(), self.pixmap.width()), shape.points, shape_type="patch_annotation",
-                                             patch_width=self.patch_width,patch_height=self.patch_height)
-                        patch_size_h = self.pixmap.height() // self.patch_height
-                        patch_size_w = self.pixmap.width() // self.patch_width
-                        previous_mask = self.previous_masks.get(shape)
-                        if previous_mask is None or not np.array_equal(mask, previous_mask):
-                            self.previous_masks[shape] = mask  # 현재 마스크를 저장
-                            
-                            if mask.sum() != 0 and shape.label:
-                                for i in range(mask.shape[0]):
-                                    for j in range(mask.shape[1]):
-                                        if mask[i, j]:
-                                            self.set_mask_label(i, j, shape.label)
-        
-            #if shape.label:\
-            if self.shapes:
-                for i in range(mask.shape[0]):
-                    for j in range(mask.shape[1]):
-                        if self.mask_label[i][j][0]!=0:
-                            label = self.mask_label[i][j]
-                            first_digit = label[0]
-                            second_digit = label[1]
-                            if first_digit == 0:
-                                color = class_colors[first_digit]
-                            else:
-                                color = class_colors[first_digit][second_digit]
-                            p.fillRect(j * patch_size_w, i * patch_size_h, patch_size_w, patch_size_h, color)
-                            #print(f'{i},{j} 칠하는중')
-                self.print_mask()
-                print('\n')
+                    if shape.shape_type != "patch_annotation":
+                        #점찍은 곳에 색깔 x
+                        shape.paint(p)
+
+            if (self.fillDrawing() and self.createMode == "patch_annotation"):
+                class_colors = {
+                    0: QtGui.QColor(0, 0, 0, 0),
+                    1: {1: QtGui.QColor(0, 255, 255, 90), 2: QtGui.QColor(0, 255, 255, 180)},
+                    2: {1: QtGui.QColor(255, 255, 0, 90), 2: QtGui.QColor(255, 255, 0, 180)}, 
+                    3: {1: QtGui.QColor(0, 0, 255, 90), 2: QtGui.QColor(0, 0, 255, 180)}, 
+                    4: {1: QtGui.QColor(0, 255, 0, 90), 2: QtGui.QColor(0, 255, 0, 180)}, 
+                    5: {1: QtGui.QColor(255, 0, 255, 90), 2: QtGui.QColor(255, 0, 255, 180)}, 
+                    6: {1: QtGui.QColor(255, 0, 0, 90), 2: QtGui.QColor(255, 0, 0, 180)}, 
+                }
+                for shape in self.shapes:
+                    if (shape.selected or not self._hideBackround) and self.isVisible(shape):
+                        shape.fill = shape.selected or shape == self.hShape
+                        shape.paint(p)
+                        # self.debug_trace()
+                        if shape.shape_type == "patch_annotation":
+                            mask = shape_to_mask((self.pixmap.height(), self.pixmap.width()), shape.points, shape_type="patch_annotation",
+                                                patch_width=self.patch_width,patch_height=self.patch_height)
+                            patch_size_h = self.pixmap.height() // self.patch_height
+                            patch_size_w = self.pixmap.width() // self.patch_width
+                            previous_mask = self.previous_masks.get(shape)
+                            if previous_mask is None or not np.array_equal(mask, previous_mask):
+                                self.previous_masks[shape] = mask  # 현재 마스크를 저장
+                                
+                                if mask.sum() != 0 and shape.label:
+                                    for i in range(mask.shape[0]):
+                                        for j in range(mask.shape[1]):
+                                            if mask[i, j]:
+                                                self.set_mask_label(i, j, shape.label)
+            
+                #if shape.label:\
+                if self.shapes:
+                    for i in range(mask.shape[0]):
+                        for j in range(mask.shape[1]):
+                            if self.mask_label[i][j][0]!=0:
+                                label = self.mask_label[i][j]
+                                first_digit = label[0]
+                                second_digit = label[1]
+                                if first_digit == 0:
+                                    color = class_colors[first_digit]
+                                else:
+                                    color = class_colors[first_digit][second_digit]
+                                p.fillRect(j * patch_size_w, i * patch_size_h, patch_size_w, patch_size_h, color)
+                                #print(f'{i},{j} 칠하는중')
+                    self.print_mask()
+                    print('\n')
 
 
         if self.current:
@@ -1117,6 +1137,24 @@ class Canvas(QtWidgets.QWidget):
     def keyPressEvent(self, ev):
         modifiers = ev.modifiers()
         key = ev.key()
+        #space 누르면 초기화
+        if ev.key() == QtCore.Qt.Key_Space:
+            self.mask_label = self.initialize_mask(self.patch_width, self.patch_height)
+            self.update()
+
+        #현재 프레임의 patch값 저장 후에 다른 프레이에 patch 값 전달
+        if ev.modifiers() & QtCore.Qt.ControlModifier:
+            if ev.key() == QtCore.Qt.Key_C:
+                Canvas.temp_mask_data = [row[:] for row in self.mask_label]
+            elif ev.key() == QtCore.Qt.Key_V:
+                if Canvas.temp_mask_data is not None:
+                    self.mask_label = [row[:] for row in Canvas.temp_mask_data]
+                    self.update()
+        
+        if ev.key() == QtCore.Qt.Key_S:
+            self.shapes_visible = not self.shapes_visible  # 가시성 상태 토글
+            self.update()
+
         if self.drawing():
             class_text = None
             intensity_text = None
@@ -1174,6 +1212,9 @@ class Canvas(QtWidgets.QWidget):
 
     def keyReleaseEvent(self, ev):
         modifiers = ev.modifiers()
+        if ev.key() == QtCore.Qt.Key_Shift:
+            if self.createMode == "patch_annotation" and self.current:
+                self.finalise()
         if self.drawing():
             if int(modifiers) == 0:
                 self.snapping = True
@@ -1229,7 +1270,7 @@ class Canvas(QtWidgets.QWidget):
             )
         if clear_shapes:
             self.shapes = []
-        self.drawGridOnPixmap()
+        # self.drawGridOnPixmap()
         self.mask_label = self.initialize_mask(self.patch_width, self.patch_height)
         self.update()
 

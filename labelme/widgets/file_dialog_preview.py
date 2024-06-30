@@ -62,7 +62,7 @@ class FileDialogPreview(QtWidgets.QFileDialog):
             if pixmap.isNull():
                 self.labelPreview.clear()
                 self.labelPreview.setHidden(True)
-            else:
+            else: 
                 self.labelPreview.setPixmap(
                     pixmap.scaled(
                         self.labelPreview.width() - 30,
