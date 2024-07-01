@@ -1030,6 +1030,7 @@ class MainWindow(QtWidgets.QMainWindow):
             index = self.intensity_combo.findText(intensity_text, QtCore.Qt.MatchFixedString)
             if index >= 0:
                 self.intensity_combo.setCurrentIndex(index)
+        
 
     def updateSelectionColor(self):
         selected_class = self.class_combo.currentText()
@@ -1198,10 +1199,13 @@ class MainWindow(QtWidgets.QMainWindow):
     # Callbacks
 
     def undoShapeEdit(self):
+
         self.canvas.restoreShape()
         self.labelList.clear()
+        self.canvas.update()
         self.loadShapes(self.canvas.shapes)
         self.actions.undo.setEnabled(self.canvas.isShapeRestorable)
+        
 
     def tutorial(self):
         url = "https://github.com/wkentaro/labelme/tree/main/examples/tutorial"  # NOQA
@@ -2104,6 +2108,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self._saveFile(self.saveFileDialog())
 
     def saveFileDialog(self):
+        basename = osp.basename(osp.splitext(self.filename)[0])
+        if self.output_dir:
+            filename = osp.join(self.output_dir, basename + LabelFile.suffix)
+        else:
+            filename = osp.join(self.currentPath(), basename + LabelFile.suffix)
+        return filename
+    """
+    def saveFileDialog(self):
         caption = self.tr("%s - Choose File") % __appname__
         filters = self.tr("Label files (*%s)") % LabelFile.suffix
         if self.output_dir:
@@ -2132,7 +2144,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if isinstance(filename, tuple):
             filename, _ = filename
         return filename
-
+    """
     def _saveFile(self, filename):
         if filename and self.saveLabels(filename):
             self.addRecentFile(filename)
@@ -2190,7 +2202,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         label_file = self.getLabelFile()
         return osp.exists(label_file)
-
+    """
     def mayContinue(self):
         if not self.dirty:
             return True
@@ -2210,6 +2222,12 @@ class MainWindow(QtWidgets.QMainWindow):
             return True
         else:  # answer == mb.Cancel
             return False
+    """
+    def mayContinue(self):
+        if not self.dirty:
+            return True
+        self.saveFile()
+        return True
 
     def errorMessage(self, title, message):
         return QtWidgets.QMessageBox.critical(

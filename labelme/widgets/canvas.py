@@ -117,7 +117,6 @@ class Canvas(QtWidgets.QWidget):
         self.patch_height = 16
         self.previous_masks = {}
         self.shapes_visible = True
-        
 
     def fillDrawing(self):
         return self._fill_drawing
@@ -780,6 +779,7 @@ class Canvas(QtWidgets.QWidget):
             second_digit = {'q': 1, 'w': 2, 'e': 3, 'r': 4}[label[1]]
             # self.debug_trace()
             self.mask_label[i][j] = [first_digit, second_digit]
+        
     # def set_mask_label(self, i, j, label):
     #     if label[0] == '0':
     #         self.mask_label[i][j] = [0, 0]
@@ -881,8 +881,7 @@ class Canvas(QtWidgets.QWidget):
                             patch_size_w = self.pixmap.width() // self.patch_width
                             previous_mask = self.previous_masks.get(shape)
                             if previous_mask is None or not np.array_equal(mask, previous_mask):
-                                self.previous_masks[shape] = mask  # 현재 마스크를 저장
-                                
+                                self.previous_masks[shape] = mask
                                 if mask.sum() != 0 and shape.label:
                                     for i in range(mask.shape[0]):
                                         for j in range(mask.shape[1]):
@@ -1185,7 +1184,7 @@ class Canvas(QtWidgets.QWidget):
                 intensity_text = "BLURRY"
             elif key == QtCore.Qt.Key_W:
                 intensity_text = "BLOCKAGE"
-            elif key == QtCore.Qt.Key_0:
+            elif key == QtCore.Qt.Key_X:
                 class_text = "CLEAN"
                 intensity_text = "CLEAN"
             #print(class_text)
@@ -1212,7 +1211,7 @@ class Canvas(QtWidgets.QWidget):
                 intensity_text = "BLURRY"
             elif key == QtCore.Qt.Key_W:
                 intensity_text = "BLOCKAGE"
-            elif key == QtCore.Qt.Key_0:
+            elif key == QtCore.Qt.Key_X:
                 class_text = "CLEAN"
                 intensity_text = "CLEAN"
                 
@@ -1259,7 +1258,7 @@ class Canvas(QtWidgets.QWidget):
             self.current.points = self.current.points[0:1]
         elif self.createMode == "point":
             self.current = None
-        self.restoreMaskLabel()  # mask_label 이전 상태 복원
+        self.restoreMaskLabel()
         self.drawingPolygon.emit(True)
 
     def undoLastPoint(self):
@@ -1271,7 +1270,7 @@ class Canvas(QtWidgets.QWidget):
         else:
             self.current = None
             self.drawingPolygon.emit(False)
-        self.restoreMaskLabel()  # mask_label 상태 복원
+        self.restoreMaskLabel()
         self.update()
 
     def loadPixmap(self, pixmap, clear_shapes=True):
