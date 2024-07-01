@@ -36,6 +36,9 @@ class Canvas(QtWidgets.QWidget):
     vertexSelected = QtCore.Signal(bool)
     classAndIntensityChanged = QtCore.Signal(str, str)
     mouseBackButtonClicked = QtCore.Signal()
+    reset_masklabel=QtCore.Signal()
+    copy_masklabel=QtCore.Signal()
+    paste_masklabel=QtCore.Signal()
 
     
     CREATE, EDIT = 0, 1
@@ -44,6 +47,7 @@ class Canvas(QtWidgets.QWidget):
     _createMode = "patch_annotation"
     _fill_drawing = False
     temp_mask_data=None
+    temp_shape_data=None
 
     def __init__(self, *args, **kwargs):
         self.epsilon = kwargs.pop("epsilon", 10.0)
@@ -161,11 +165,9 @@ class Canvas(QtWidgets.QWidget):
         )
 
     def storeMaskLabel(self):
-        # 현재 mask_label 상태 저장
         self.mask_label_backup = [row[:] for row in self.mask_label]
 
     def restoreMaskLabel(self):
-        # 백업된 mask_label 상태 복원
         self.mask_label = [row[:] for row in self.mask_label_backup]
 
     def storeShapes(self):
@@ -175,7 +177,7 @@ class Canvas(QtWidgets.QWidget):
         if len(self.shapesBackups) > self.num_backups:
             self.shapesBackups = self.shapesBackups[-self.num_backups - 1 :]
         # self.shapesBackups.append(shapesBackup)
-        self.shapesBackups.append((shapesBackup, [row[:] for row in self.mask_label]))  # mask_label 저장
+        self.shapesBackups.append((shapesBackup, [row[:] for row in self.mask_label]))
         self.storeMaskLabel()
 
     @property
@@ -776,10 +778,18 @@ class Canvas(QtWidgets.QWidget):
         elif label[0].isdigit():
             first_digit = int(label[0])
             second_digit = {'q': 1, 'w': 2, 'e': 3, 'r': 4}[label[1]]
-            if self.mask_label[i][j] == [first_digit, second_digit]:
-                self.mask_label[i][j] = [0, 0]
-            else:
-                self.mask_label[i][j] = [first_digit, second_digit]
+            # self.debug_trace()
+            self.mask_label[i][j] = [first_digit, second_digit]
+    # def set_mask_label(self, i, j, label):
+    #     if label[0] == '0':
+    #         self.mask_label[i][j] = [0, 0]
+    #     elif label[0].isdigit():
+    #         first_digit = int(label[0])
+    #         second_digit = {'q': 1, 'w': 2, 'e': 3, 'r': 4}[label[1]]
+    #         if self.mask_label[i][j] == [first_digit, second_digit]:
+    #             self.mask_label[i][j] = [0, 0]
+    #         else:
+    #             self.mask_label[i][j] = [first_digit, second_digit]
 
     def debug_trace(self):
         '''Set a tracepoint in the Python debugger that works with Qt'''
@@ -1137,22 +1147,25 @@ class Canvas(QtWidgets.QWidget):
     def keyPressEvent(self, ev):
         modifiers = ev.modifiers()
         key = ev.key()
-        #space 누르면 초기화
-        if ev.key() == QtCore.Qt.Key_Space:
+        if ev.key() == QtCore.Qt.Key_U:
             self.mask_label = self.initialize_mask(self.patch_width, self.patch_height)
+            self.reset_masklabel.emit()
             self.update()
-
-        #현재 프레임의 patch값 저장 후에 다른 프레이에 patch 값 전달
         if ev.modifiers() & QtCore.Qt.ControlModifier:
             if ev.key() == QtCore.Qt.Key_C:
                 Canvas.temp_mask_data = [row[:] for row in self.mask_label]
+                # Canvas.temp_shape_data = self.shapes
+                self.copy_masklabel.emit()
+
             elif ev.key() == QtCore.Qt.Key_V:
                 if Canvas.temp_mask_data is not None:
                     self.mask_label = [row[:] for row in Canvas.temp_mask_data]
+                    # self.shapes = Canvas.temp_shape_data
+                    self.paste_masklabel.emit()
                     self.update()
         
-        if ev.key() == QtCore.Qt.Key_S:
-            self.shapes_visible = not self.shapes_visible  # 가시성 상태 토글
+        if ev.key() == QtCore.Qt.Key_Space:
+            self.shapes_visible = not self.shapes_visible
             self.update()
 
         if self.drawing():

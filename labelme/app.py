@@ -49,6 +49,7 @@ class MainWindow(QtWidgets.QMainWindow):
     FIT_WINDOW, FIT_WIDTH, MANUAL_ZOOM = 0, 1, 2
 
     patchSizeChanged = QtCore.Signal(int, int)
+    temp_shape_data=None
 
     def __init__(
         self,
@@ -282,6 +283,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.canvas.selectionChanged.connect(self.shapeSelectionChanged)
         self.canvas.drawingPolygon.connect(self.toggleDrawingSensitive)
         self.canvas.mouseBackButtonClicked.connect(self.undoShapeEdit)
+
+        self.canvas.reset_masklabel.connect(self.resetLabel)
+        self.canvas.copy_masklabel.connect(self.copyPresentShape)
+        self.canvas.paste_masklabel.connect(self.pastePresentShape)
 
         self.setCentralWidget(scrollArea)
 
@@ -1169,6 +1174,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.labelFile = None
         self.otherData = None
         self.canvas.resetState()
+    
+    def resetLabel(self):
+        #self.debug_trace()
+        self.labelList.clear()
+
+    
 
     def currentItem(self):
         items = self.labelList.selectedItems()
@@ -1551,10 +1562,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setDirty()
 
     def copySelectedShape(self):
-        print('들어오나?')
         self._copied_shapes = [s.copy() for s in self.canvas.selectedShapes]
-        self.debug_trace()
         self.actions.paste.setEnabled(len(self._copied_shapes) > 0)
+
+    def copyPresentShape(self):
+        MainWindow.temp_shape_data = self.canvas.shapes
+
+    def pastePresentShape(self):
+        self.labelList.clear()
+        self.loadShapes(MainWindow.temp_shape_data, replace=False)
+        self.setDirty()
+        
+    #def copyPresentShape(self):
+    #    MainWindow.temp_shape_data = self.labelList
 
     def labelSelectionChanged(self):
         if self._noSelectionSlot:
