@@ -1178,6 +1178,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def resetLabel(self):
         #self.debug_trace()
         self.labelList.clear()
+        self.saveFile
 
     
 
@@ -1572,6 +1573,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.labelList.clear()
         self.loadShapes(MainWindow.temp_shape_data, replace=False)
         self.setDirty()
+        self.saveFile
         
     #def copyPresentShape(self):
     #    MainWindow.temp_shape_data = self.labelList
