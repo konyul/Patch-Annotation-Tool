@@ -117,6 +117,10 @@ class Canvas(QtWidgets.QWidget):
         self.patch_height = 16
         self.previous_masks = {}
         self.shapes_visible = True
+        self.class_text = None
+        self.intensity_text = None
+        self.tmp_class_text = None
+        self.tmp_intensity_text = None
 
     def fillDrawing(self):
         return self._fill_drawing
@@ -1168,35 +1172,37 @@ class Canvas(QtWidgets.QWidget):
             self.update()
 
         if self.drawing():
-            class_text = None
-            intensity_text = None
+            if (self.class_text is not None) or (self.intensity_text is not None):
+                self.tmp_class_text = self.class_text
+                self.tmp_intensity_text = self.intensity_text
+            self.class_text = None
+            self.intensity_text = None
             if key == QtCore.Qt.Key_Escape and self.current:
                 self.current = None
                 self.drawingPolygon.emit(False)
-                #self.update()
             elif key == QtCore.Qt.Key_Return and self.canCloseShape():
                 self.finalise()
             elif modifiers == QtCore.Qt.AltModifier:
                 self.snapping = False
             elif key in [QtCore.Qt.Key_1, QtCore.Qt.Key_2, QtCore.Qt.Key_3, QtCore.Qt.Key_4, QtCore.Qt.Key_5, QtCore.Qt.Key_6]:
-                class_text = f"class{key - QtCore.Qt.Key_0}"
+                self.class_text = f"class{key - QtCore.Qt.Key_0}"
             elif key == QtCore.Qt.Key_Q:
-                intensity_text = "BLURRY"
+                self.intensity_text = "BLURRY"
             elif key == QtCore.Qt.Key_W:
-                intensity_text = "BLOCKAGE"
+                self.intensity_text = "BLOCKAGE"
             elif key == QtCore.Qt.Key_X:
-                class_text = "CLEAN"
-                intensity_text = "CLEAN"
-            #print(class_text)
-            #print(intensity_text)
-            if class_text or intensity_text:
-                if (class_text != "CLEAN") and (intensity_text == "CLEAN"):
-                    intensity_text = "BLURRY"
-                self.classAndIntensityChanged.emit(class_text, intensity_text)
+                self.class_text = "CLEAN"
+                self.intensity_text = "CLEAN"
+            if self.class_text or self.intensity_text:
+                if (self.class_text != "CLEAN") and (self.intensity_text == "CLEAN"):
+                    self.intensity_text = "BLURRY"
+                self.classAndIntensityChanged.emit(self.class_text, self.intensity_text)
         elif self.editing():
-            class_text = None
-            intensity_text = None
-
+            if (self.class_text is not None) or (self.intensity_text is not None):
+                self.tmp_class_text = self.class_text
+                self.tmp_intensity_text = self.intensity_text
+            self.class_text = None
+            self.intensity_text = None
             if key == QtCore.Qt.Key_Up:
                 self.moveByKeyboard(QtCore.QPointF(0.0, -MOVE_SPEED))
             elif key == QtCore.Qt.Key_Down:
@@ -1206,27 +1212,38 @@ class Canvas(QtWidgets.QWidget):
             elif key == QtCore.Qt.Key_Right:
                 self.moveByKeyboard(QtCore.QPointF(MOVE_SPEED, 0.0))
             elif key in [QtCore.Qt.Key_1, QtCore.Qt.Key_2, QtCore.Qt.Key_3, QtCore.Qt.Key_4, QtCore.Qt.Key_5, QtCore.Qt.Key_6]:
-                class_text = f"class{key - QtCore.Qt.Key_0}"
+                self.class_text = f"class{key - QtCore.Qt.Key_0}"
             elif key == QtCore.Qt.Key_Q:
-                intensity_text = "BLURRY"
+                self.intensity_text = "BLURRY"
             elif key == QtCore.Qt.Key_W:
-                intensity_text = "BLOCKAGE"
+                self.intensity_text = "BLOCKAGE"
             elif key == QtCore.Qt.Key_X:
-                class_text = "CLEAN"
-                intensity_text = "CLEAN"
+                self.tmp_class_text = self.class_text
+                self.tmp_intensity_text = self.intensity_text
+                self.class_text = "CLEAN"
+                self.intensity_text = "CLEAN"
                 
-            #print(class_text)
-            #print(intensity_text)
-            if class_text or intensity_text:
-                if (class_text != "CLEAN") and (intensity_text == "CLEAN"):
-                    intensity_text = "BLURRY"
-                self.classAndIntensityChanged.emit(class_text, intensity_text)
+            #print(self.class_text)
+            #print(self.intensity_text)
+            if self.class_text or self.intensity_text:
+                if (self.class_text != "CLEAN") and (self.intensity_text == "CLEAN"):
+                    self.intensity_text = "BLURRY"
+                self.classAndIntensityChanged.emit(self.class_text, self.intensity_text)
 
     def keyReleaseEvent(self, ev):
         modifiers = ev.modifiers()
         if ev.key() == QtCore.Qt.Key_Shift:
             if self.createMode == "patch_annotation" and self.current:
                 self.finalise()
+        if ev.key() == QtCore.Qt.Key_X:
+            self.class_text = self.tmp_class_text
+            self.intensity_text = self.tmp_intensity_text
+
+            if self.class_text or self.intensity_text:
+                if (self.class_text != "CLEAN") and (self.intensity_text == "CLEAN"):
+                    self.intensity_text = "BLURRY"
+                self.classAndIntensityChanged.emit(self.class_text, self.intensity_text)
+
         if self.drawing():
             if int(modifiers) == 0:
                 self.snapping = True
