@@ -877,35 +877,41 @@ class Canvas(QtWidgets.QWidget):
                     if (shape.selected or not self._hideBackround) and self.isVisible(shape):
                         shape.fill = shape.selected or shape == self.hShape
                         shape.paint(p)
-                        # self.debug_trace()
+
                         if shape.shape_type == "patch_annotation":
-                            mask = shape_to_mask((self.pixmap.height(), self.pixmap.width()), shape.points, shape_type="patch_annotation",
-                                                patch_width=self.patch_width,patch_height=self.patch_height)
+                            mask = shape_to_mask(
+                                (self.pixmap.height(), self.pixmap.width()), shape.points,
+                                shape_type="patch_annotation", patch_width=self.patch_width,
+                                patch_height=self.patch_height
+                            )
                             patch_size_h = self.pixmap.height() // self.patch_height
                             patch_size_w = self.pixmap.width() // self.patch_width
                             previous_mask = self.previous_masks.get(shape)
+
                             if previous_mask is None or not np.array_equal(mask, previous_mask):
                                 self.previous_masks[shape] = mask
                                 if mask.sum() != 0 and shape.label:
-                                    for i in range(mask.shape[0]):
-                                        for j in range(mask.shape[1]):
-                                            if mask[i, j]:
-                                                self.set_mask_label(i, j, shape.label)
-            
-                #if shape.label:\
+                                    indices = np.argwhere(mask)
+                                    for idx in indices:
+                                        self.set_mask_label(idx[0], idx[1], shape.label)
+
                 if self.shapes:
-                    for i in range(mask.shape[0]):
-                        for j in range(mask.shape[1]):
-                            if self.mask_label[i][j][0]!=0:
-                                label = self.mask_label[i][j]
-                                first_digit = label[0]
-                                second_digit = label[1]
-                                if first_digit == 0:
-                                    color = class_colors[first_digit]
-                                else:
-                                    color = class_colors[first_digit][second_digit]
-                                p.fillRect(j * patch_size_w, i * patch_size_h, patch_size_w, patch_size_h, color)
-                                #print(f'{i},{j} 칠하는중')
+                    mask_nonzero_indices = np.argwhere(self.mask_label[:, :, 0] != 0)
+                    labels = self.mask_label[mask_nonzero_indices[:, 0], mask_nonzero_indices[:, 1]]
+
+                    colors = np.zeros((labels.shape[0], 3), dtype=int)
+                    first_digits = labels[:, 0]
+                    second_digits = labels[:, 1]
+
+                    for i, (first_digit, second_digit) in enumerate(zip(first_digits, second_digits)):
+                        if first_digit == 0:
+                            colors[i] = class_colors[first_digit]
+                        else:
+                            colors[i] = class_colors[first_digit][second_digit]
+
+                    for idx, (i, j) in enumerate(mask_nonzero_indices):
+                        p.fillRect(j * patch_size_w, i * patch_size_h, patch_size_w, patch_size_h, colors[idx])
+
                     self.print_mask()
                     print('\n')
 
