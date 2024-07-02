@@ -896,21 +896,20 @@ class Canvas(QtWidgets.QWidget):
                                         self.set_mask_label(idx[0], idx[1], shape.label)
 
                 if self.shapes:
-                    mask_nonzero_indices = np.argwhere(self.mask_label[:, :, 0] != 0)
-                    labels = self.mask_label[mask_nonzero_indices[:, 0], mask_nonzero_indices[:, 1]]
+                    mask_label_array = np.array(self.mask_label)
+                    mask_nonzero_indices = np.argwhere(mask_label_array[:, :, 0] != 0)
+                    labels = mask_label_array[mask_nonzero_indices[:, 0], mask_nonzero_indices[:, 1]]
 
-                    colors = np.zeros((labels.shape[0], 3), dtype=int)
-                    first_digits = labels[:, 0]
-                    second_digits = labels[:, 1]
+                    for (i, j), label in zip(mask_nonzero_indices, labels):
+                        first_digit = label[0]
+                        second_digit = label[1]
 
-                    for i, (first_digit, second_digit) in enumerate(zip(first_digits, second_digits)):
                         if first_digit == 0:
-                            colors[i] = class_colors[first_digit]
+                            color = class_colors[first_digit]
                         else:
-                            colors[i] = class_colors[first_digit][second_digit]
+                            color = class_colors[first_digit][second_digit]
 
-                    for idx, (i, j) in enumerate(mask_nonzero_indices):
-                        p.fillRect(j * patch_size_w, i * patch_size_h, patch_size_w, patch_size_h, colors[idx])
+                        p.fillRect(j * patch_size_w, i * patch_size_h, patch_size_w, patch_size_h, color)
 
                     self.print_mask()
                     print('\n')
