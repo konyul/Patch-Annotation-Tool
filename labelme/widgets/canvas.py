@@ -197,7 +197,9 @@ class Canvas(QtWidgets.QWidget):
         # The complete process is also done in app.py::undoShapeEdit
         # and app.py::loadShapes and our own Canvas::loadShapes function.
         if not self.isShapeRestorable:
-            return
+            self.mask_label = self.initialize_mask(self.patch_width, self.patch_height)
+            self.reset_masklabel.emit()
+            self.update()
         self.shapesBackups.pop()  # latest
 
         # The application will eventually call Canvas.loadShapes which will
