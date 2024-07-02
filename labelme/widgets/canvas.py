@@ -911,9 +911,8 @@ class Canvas(QtWidgets.QWidget):
 
                         p.fillRect(j * patch_size_w, i * patch_size_h, patch_size_w, patch_size_h, color)
 
-                    self.print_mask()
-                    print('\n')
-
+                    #self.print_mask()
+                    #print('\n')
 
         if self.current:
             self.current.paint(p)
@@ -1178,11 +1177,12 @@ class Canvas(QtWidgets.QWidget):
 
         if self.drawing():
             if (self.class_text is not None) or (self.intensity_text is not None):
-                if (self.class_text != "CLEAN") and (self.intensity_text != "CLEAN"):
+                if (self.class_text != "CLEAN") and (self.intensity_text != "CLEAN") and (self.class_text is not None):
                     self.tmp_class_text = self.class_text
                     self.tmp_intensity_text = self.intensity_text
             self.class_text = None
             self.intensity_text = None
+
             if key == QtCore.Qt.Key_Escape and self.current:
                 self.current = None
                 self.drawingPolygon.emit(False)
@@ -1199,13 +1199,14 @@ class Canvas(QtWidgets.QWidget):
             elif key == QtCore.Qt.Key_X:
                 self.class_text = "CLEAN"
                 self.intensity_text = "CLEAN"
+
             if self.class_text or self.intensity_text:
                 if (self.class_text != "CLEAN") and (self.intensity_text == "CLEAN"):
                     self.intensity_text = "BLURRY"
                 self.classAndIntensityChanged.emit(self.class_text, self.intensity_text)
         elif self.editing():
             if (self.class_text is not None) or (self.intensity_text is not None):
-                if (self.class_text != "CLEAN") and (self.intensity_text != "CLEAN"):
+                if (self.class_text != "CLEAN") and (self.intensity_text != "CLEAN") and (self.class_text is not None):
                     self.tmp_class_text = self.class_text
                     self.tmp_intensity_text = self.intensity_text
             self.class_text = None
@@ -1225,13 +1226,9 @@ class Canvas(QtWidgets.QWidget):
             elif key == QtCore.Qt.Key_W:
                 self.intensity_text = "BLOCKAGE"
             elif key == QtCore.Qt.Key_X:
-                self.tmp_class_text = self.class_text
-                self.tmp_intensity_text = self.intensity_text
                 self.class_text = "CLEAN"
                 self.intensity_text = "CLEAN"
-                
-            #print(self.class_text)
-            #print(self.intensity_text)
+
             if self.class_text or self.intensity_text:
                 if (self.class_text != "CLEAN") and (self.intensity_text == "CLEAN"):
                     self.intensity_text = "BLURRY"
@@ -1245,9 +1242,8 @@ class Canvas(QtWidgets.QWidget):
         if ev.key() == QtCore.Qt.Key_X:
             self.class_text = self.tmp_class_text
             self.intensity_text = self.tmp_intensity_text
-
             if self.class_text or self.intensity_text:
-                if (self.class_text != "CLEAN") and (self.intensity_text == "CLEAN"):
+                if (self.class_text != "CLEAN") and (self.intensity_text == "CLEAN") and (self.class_text is not None):
                     self.intensity_text = "BLURRY"
                 self.classAndIntensityChanged.emit(self.class_text, self.intensity_text)
 
