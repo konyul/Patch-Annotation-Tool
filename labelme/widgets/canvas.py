@@ -1173,8 +1173,9 @@ class Canvas(QtWidgets.QWidget):
 
         if self.drawing():
             if (self.class_text is not None) or (self.intensity_text is not None):
-                self.tmp_class_text = self.class_text
-                self.tmp_intensity_text = self.intensity_text
+                if (self.class_text != "CLEAN") and (self.intensity_text != "CLEAN"):
+                    self.tmp_class_text = self.class_text
+                    self.tmp_intensity_text = self.intensity_text
             self.class_text = None
             self.intensity_text = None
             if key == QtCore.Qt.Key_Escape and self.current:
@@ -1199,8 +1200,9 @@ class Canvas(QtWidgets.QWidget):
                 self.classAndIntensityChanged.emit(self.class_text, self.intensity_text)
         elif self.editing():
             if (self.class_text is not None) or (self.intensity_text is not None):
-                self.tmp_class_text = self.class_text
-                self.tmp_intensity_text = self.intensity_text
+                if (self.class_text != "CLEAN") and (self.intensity_text != "CLEAN"):
+                    self.tmp_class_text = self.class_text
+                    self.tmp_intensity_text = self.intensity_text
             self.class_text = None
             self.intensity_text = None
             if key == QtCore.Qt.Key_Up:
