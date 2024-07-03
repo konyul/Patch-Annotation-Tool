@@ -976,7 +976,7 @@ class Canvas(QtWidgets.QWidget):
             )
             drawing_shape.selected = True
             drawing_shape.paint(p)
-
+        
         p.end()
 
     def transformPos(self, point):

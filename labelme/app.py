@@ -50,6 +50,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
     patchSizeChanged = QtCore.Signal(int, int)
     temp_shape_data=None
+    queue_label={}
+    queue_img={}
+    queue_img_name={}
+    queue_patch={}
+    queue_img_size={}
+    checked_json=[]
 
     def __init__(
         self,
@@ -119,7 +125,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.flag_widget = QtWidgets.QListWidget()
         if config["flags"]:
             self.loadFlags({k: False for k in config["flags"]})
-        self.flag_dock.setWidget(self.flag_widget)
+        #self.flag_dock.setWidget(self.flag_widget)
         self.flag_widget.itemChanged.connect(self.setDirty)
 
         self.labelList.itemSelectionChanged.connect(self.labelSelectionChanged)
@@ -258,6 +264,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.zoomWidget = ZoomWidget()
         self.setAcceptDrops(True)
+        self.scaled_pixmap = None
 
         self.canvas = self.labelList.canvas = Canvas(
             epsilon=self._config["epsilon"],
@@ -307,7 +314,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.addDockWidget(Qt.RightDockWidgetArea, self.label_dock)
         self.addDockWidget(Qt.RightDockWidgetArea, self.shape_dock)
         self.addDockWidget(Qt.RightDockWidgetArea, self.file_dock)
-
+        
         # Actions
         action = functools.partial(utils.newAction, self)
         shortcuts = self._config["shortcuts"]
@@ -1190,6 +1197,7 @@ class MainWindow(QtWidgets.QMainWindow):
         return None
 
     def addRecentFile(self, filename):
+
         if filename in self.recentFiles:
             self.recentFiles.remove(filename)
         elif len(self.recentFiles) >= self.maxRecent:
@@ -1340,10 +1348,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if not items:
             return
         item = items[0]
-
         if not self.mayContinue():
             return
-
         currIndex = self.imageList.index(str(item.text()))
         if currIndex < len(self.imageList):
             filename = self.imageList[currIndex]
@@ -1453,7 +1459,7 @@ class MainWindow(QtWidgets.QMainWindow):
             flags = shape["flags"]
             description = shape.get("description", "")
             group_id = shape["group_id"]
-            other_data = shape["other_data"]
+            #other_data = shape["other_data"]
 
             if not points:
                 # skip point-empty shape
@@ -1478,7 +1484,7 @@ class MainWindow(QtWidgets.QMainWindow):
                             default_flags[key] = False
             shape.flags = default_flags
             shape.flags.update(flags)
-            shape.other_data = other_data
+            #shape.other_data = other_data
 
             s.append(shape)
         self.loadShapes(s)
@@ -1500,7 +1506,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def saveLabels(self, filename):
         lf = LabelFile()
-
         def format_shape(s):
             data = s.other_data.copy()
             data.update(
@@ -1517,6 +1522,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return data
         shapes = [format_shape(item.shape()) for item in self.labelList]
         #shapes = [[format_shape(item.shape()) for item in self.labelList][-1]]
+
         flags = {}
         for i in range(self.flag_widget.count()):
             item = self.flag_widget.item(i)
@@ -1536,6 +1542,49 @@ class MainWindow(QtWidgets.QMainWindow):
                 imageData=imageData,
                 imageHeight=self.image.height(),
                 imageWidth=self.image.width(),
+                otherData=self.otherData,
+                flags=flags,
+            )
+            self.labelFile = lf
+            items = self.fileListWidget.findItems(self.imagePath, Qt.MatchExactly)
+            if len(items) > 0:
+                if len(items) != 1:
+                    raise RuntimeError("There are duplicate files.")
+                items[0].setCheckState(Qt.Checked)
+            # disable allows next and previous image to proceed
+            # self.filename = filename
+            return True
+        except LabelFileError as e:
+            self.errorMessage(
+                self.tr("Error saving label data"), self.tr("<b>%s</b>") % e
+            )
+            return False
+    def queue_saveLabels(self, filename):
+        lf = LabelFile()
+        img_name = osp.splitext(filename)[0] + ".png"
+        
+        shapes = MainWindow.queue_label[img_name]
+        #shapes = [[format_shape(item.shape()) for item in self.labelList][-1]]
+
+        flags = {}
+        for i in range(self.flag_widget.count()):
+            item = self.flag_widget.item(i)
+            key = item.text()
+            flag = item.checkState() == Qt.Checked
+            flags[key] = flag
+        try:
+            imagePath = osp.relpath(img_name, osp.dirname(filename))
+            imageData = self.imageData if self._config["store_data"] else None
+            if osp.dirname(filename) and not osp.exists(osp.dirname(filename)):
+                os.makedirs(osp.dirname(filename))
+            lf.save(
+                filename=filename,
+                patch=MainWindow.queue_patch[img_name],
+                shapes=shapes,
+                imagePath=imagePath,
+                imageData=imageData,
+                imageHeight=MainWindow.queue_img_size[img_name][0],
+                imageWidth=MainWindow.queue_img_size[img_name][1],
                 otherData=self.otherData,
                 flags=flags,
             )
@@ -1779,7 +1828,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.fileListWidget.setCurrentRow(self.imageList.index(filename))
             self.fileListWidget.repaint()
             return
-
+        self.no_jsonfile=False
         self.resetState()
         self.canvas.setEnabled(False)
         if filename is None:
@@ -1797,58 +1846,91 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.output_dir:
             label_file_without_path = osp.basename(label_file)
             label_file = osp.join(self.output_dir, label_file_without_path)
-        if QtCore.QFile.exists(label_file) and LabelFile.is_label_file(label_file):
-            try:
-                self.labelFile = LabelFile(label_file)
-            except LabelFileError as e:
-                self.errorMessage(
-                    self.tr("Error opening file"),
-                    self.tr(
-                        "<p><b>%s</b></p>"
-                        "<p>Make sure <i>%s</i> is a valid label file."
-                    )
-                    % (e, label_file),
-                )
-                self.status(self.tr("Error reading %s") % label_file)
-                return False
-            self.imageData = self.labelFile.imageData
-            self.imagePath = osp.join(
-                osp.dirname(label_file),
-                self.labelFile.imagePath,
-            )
-            self.otherData = self.labelFile.otherData
-        else:
+        
+        if filename in MainWindow.queue_label:
             self.imageData = LabelFile.load_image_file(filename)
             if self.imageData:
                 self.imagePath = filename
-            self.labelFile = None
-        image = QtGui.QImage.fromData(self.imageData)
+            self.labelFile = MainWindow.queue_label[filename]
+            image = QtGui.QImage.fromData(self.imageData)
 
-        if image.isNull():
-            formats = [
-                "*.{}".format(fmt.data().decode())
-                for fmt in QtGui.QImageReader.supportedImageFormats()
-            ]
-            self.errorMessage(
-                self.tr("Error opening file"),
-                self.tr(
-                    "<p>Make sure <i>{0}</i> is a valid image file.<br/>"
-                    "Supported image formats: {1}</p>"
-                ).format(filename, ",".join(formats)),
-            )
-            self.status(self.tr("Error reading %s") % filename)
-            return False
-        self.image = image
-        self.filename = filename
-        if self._config["keep_prev"]:
-            prev_shapes = self.canvas.shapes
-        self.canvas.loadPixmap(QtGui.QPixmap.fromImage(image))
-        flags = {k: False for k in self._config["flags"] or []}
-        if self.labelFile:
-            self.loadLabels(self.labelFile.shapes)
-            if self.labelFile.flags is not None:
-                flags.update(self.labelFile.flags)
-        self.loadFlags(flags)
+            if image.isNull():
+                formats = [
+                    "*.{}".format(fmt.data().decode())
+                    for fmt in QtGui.QImageReader.supportedImageFormats()
+                ]
+                self.errorMessage(
+                    self.tr("Error opening file"),
+                    self.tr(
+                        "<p>Make sure <i>{0}</i> is a valid image file.<br/>"
+                        "Supported image formats: {1}</p>"
+                    ).format(filename, ",".join(formats)),
+                )
+                self.status(self.tr("Error reading %s") % filename)
+                return False
+            
+            self.image = image
+            self.filename = filename
+            self.canvas.loadPixmap(QtGui.QPixmap.fromImage(image))
+            #flags = {k: False for k in self._config["flags"] or []}
+            #self.debug_trace()
+            if self.labelFile:
+                self.loadLabels(self.labelFile)
+                #if self.labelFile.flags is not None:
+                #    flags.update(self.labelFile.flags)
+        else:
+            if QtCore.QFile.exists(label_file) and LabelFile.is_label_file(label_file):
+                try:
+                    self.labelFile = LabelFile(label_file)
+                except LabelFileError as e:
+                    self.errorMessage(
+                        self.tr("Error opening file"),
+                        self.tr(
+                            "<p><b>%s</b></p>"
+                            "<p>Make sure <i>%s</i> is a valid label file."
+                        )
+                        % (e, label_file),
+                    )
+                    self.status(self.tr("Error reading %s") % label_file)
+                    return False
+                self.imageData = self.labelFile.imageData
+                self.imagePath = osp.join(
+                    osp.dirname(label_file),
+                    self.labelFile.imagePath,
+                )
+                self.otherData = self.labelFile.otherData
+            else:
+                self.imageData = LabelFile.load_image_file(filename)
+                if self.imageData:
+                    self.imagePath = filename
+                self.labelFile = None
+            image = QtGui.QImage.fromData(self.imageData)
+
+            if image.isNull():
+                formats = [
+                    "*.{}".format(fmt.data().decode())
+                    for fmt in QtGui.QImageReader.supportedImageFormats()
+                ]
+                self.errorMessage(
+                    self.tr("Error opening file"),
+                    self.tr(
+                        "<p>Make sure <i>{0}</i> is a valid image file.<br/>"
+                        "Supported image formats: {1}</p>"
+                    ).format(filename, ",".join(formats)),
+                )
+                self.status(self.tr("Error reading %s") % filename)
+                return False
+            self.image = image
+            self.filename = filename
+            if self._config["keep_prev"]:
+                prev_shapes = self.canvas.shapes
+            self.canvas.loadPixmap(QtGui.QPixmap.fromImage(image))
+            flags = {k: False for k in self._config["flags"] or []}
+            if self.labelFile:
+                self.loadLabels(self.labelFile.shapes)
+                if self.labelFile.flags is not None:
+                    flags.update(self.labelFile.flags)
+        #self.loadFlags(flags)
         if self._config["keep_prev"] and self.noShapes():
             self.loadShapes(prev_shapes, replace=False)
             self.setDirty()
@@ -1897,6 +1979,36 @@ class MainWindow(QtWidgets.QMainWindow):
         self.toggleActions(True)
         self.canvas.setFocus()
         self.status(str(self.tr("Loaded %s")) % osp.basename(str(filename)))
+
+        corruption_layout = self.corruption_dock.widget().layout()
+        if hasattr(self, 'canvas_label') and self.canvas_label:
+            corruption_layout.removeWidget(self.canvas_label)
+            self.canvas_label.deleteLater()
+            self.canvas_label = None
+
+        if filename in MainWindow.queue_img:
+            scaled_pixmap = MainWindow.queue_img[filename]
+            label = QtWidgets.QLabel()
+            label.setPixmap(scaled_pixmap)
+            patch_height_index = corruption_layout.indexOf(self.patchHeightInput)
+            corruption_layout.insertWidget(patch_height_index + 1, label)
+            self.canvas_label = label
+        elif QtCore.QFile.exists(label_file) and LabelFile.is_label_file(label_file) and (filename not in MainWindow.checked_json):
+            original_pixmap = self.canvas.grab()
+            self.scaled_pixmap = original_pixmap.scaled(
+                original_pixmap.width() // 3,
+                original_pixmap.height() // 3,
+                QtCore.Qt.KeepAspectRatio,
+                QtCore.Qt.SmoothTransformation
+            )
+            label = QtWidgets.QLabel()
+            label.setPixmap(self.scaled_pixmap)
+            patch_height_index = corruption_layout.indexOf(self.patchHeightInput)
+            corruption_layout.insertWidget(patch_height_index + 1, label)
+            self.canvas_label = label
+            MainWindow.queue_img[self.filename] = self.scaled_pixmap
+            MainWindow.checked_json.append(filename)
+
         return True
 
     def resizeEvent(self, event):
@@ -1984,18 +2096,39 @@ class MainWindow(QtWidgets.QMainWindow):
         ):
             self._config["keep_prev"] = True
 
-        if not self.mayContinue():
-            return
+        #if not self.mayContinue():
+        #    return
 
         if len(self.imageList) <= 0:
             return
 
         if self.filename is None:
             return
-
+        
+        def format_shape(s):
+            data = s.other_data.copy()
+            data.update(
+                dict(
+                    label=s.label.encode("utf-8") if PY2 else s.label,
+                    points=[(p.x(), p.y()) for p in s.points],
+                    group_id=s.group_id,
+                    description=s.description,
+                    shape_type=s.shape_type,
+                    flags=s.flags,
+                    mask=None if s.mask is None else utils.img_arr_to_b64(s.mask),
+                )
+            )
+            return data
         currIndex = self.imageList.index(self.filename)
+        MainWindow.queue_img_size[self.filename] = [self.image.height(), self.image.width()]
+        MainWindow.queue_label[self.filename] = [format_shape(item.shape()) for item in self.labelList]
         if currIndex - 1 >= 0:
+            MainWindow.queue_patch[self.filename] = self.canvas.get_mask_label()
+            if len([format_shape(item.shape()) for item in self.labelList]) > 0:
+                items = self.fileListWidget.findItems(self.filename, Qt.MatchExactly)
+                items[0].setCheckState(Qt.Checked)
             filename = self.imageList[currIndex - 1]
+            self.filename = filename
             if filename:
                 self.loadFile(filename)
 
@@ -2009,12 +2142,28 @@ class MainWindow(QtWidgets.QMainWindow):
         ):
             self._config["keep_prev"] = True
 
-        if not self.mayContinue():
-            return
-
+        #if not self.mayContinue():
+        #    return
+        #self.debug_trace()
         if len(self.imageList) <= 0:
             return
 
+        def format_shape(s):
+            data = s.other_data.copy()
+            data.update(
+                dict(
+                    label=s.label.encode("utf-8") if PY2 else s.label,
+                    points=[(p.x(), p.y()) for p in s.points],
+                    group_id=s.group_id,
+                    description=s.description,
+                    shape_type=s.shape_type,
+                    flags=s.flags,
+                    mask=None if s.mask is None else utils.img_arr_to_b64(s.mask),
+                )
+            )
+            return data
+        MainWindow.queue_img_size[self.filename] = [self.image.height(), self.image.width()]
+        MainWindow.queue_label[self.filename] = [format_shape(item.shape()) for item in self.labelList]
         filename = None
         if self.filename is None:
             filename = self.imageList[0]
@@ -2024,8 +2173,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 filename = self.imageList[currIndex + 1]
             else:
                 filename = self.imageList[-1]
+            MainWindow.queue_patch[self.filename] = self.canvas.get_mask_label()
+            if len([format_shape(item.shape()) for item in self.labelList]) > 0:
+                items = self.fileListWidget.findItems(self.filename, Qt.MatchExactly)
+                items[0].setCheckState(Qt.Checked)
+                
         self.filename = filename
-
         if self.filename and load:
             self.loadFile(self.filename)
 
@@ -2093,9 +2246,44 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def saveFile(self, _value=False):
         assert not self.image.isNull(), "cannot save empty image"
-        if self.labelFile:
+        def format_shape(s):
+            data = s.other_data.copy()
+            data.update(
+                dict(
+                    label=s.label.encode("utf-8") if PY2 else s.label,
+                    points=[(p.x(), p.y()) for p in s.points],
+                    group_id=s.group_id,
+                    description=s.description,
+                    shape_type=s.shape_type,
+                    flags=s.flags,
+                    mask=None if s.mask is None else utils.img_arr_to_b64(s.mask),
+                )
+            )
+            return data
+        
+        if self.filename not in MainWindow.queue_label:
+            MainWindow.queue_img_size[self.filename] = [self.image.height(), self.image.width()]
+            MainWindow.queue_label[self.filename] = [format_shape(item.shape()) for item in self.labelList]
+            MainWindow.queue_patch[self.filename] = self.canvas.get_mask_label()
+        
+        if bool(MainWindow.queue_label):
+            self.queue_saveFile()
+            for k in MainWindow.queue_img.keys():
+                MainWindow.checked_json.remove(k)
+            MainWindow.queue_label.clear()
+            MainWindow.queue_img.clear()
+            MainWindow.queue_img_size.clear()
+            MainWindow.queue_patch.clear()
+
+            
+
+        elif self.labelFile:
             # DL20180323 - overwrite when in directory
             self._saveFile(self.labelFile.filename)
+            MainWindow.queue_label.clear()
+            MainWindow.queue_img.clear()
+            MainWindow.queue_img_size.clear()
+            MainWindow.queue_patch.clear()
         elif self.output_file:
             self._saveFile(self.output_file)
             self.close()
@@ -2145,9 +2333,61 @@ class MainWindow(QtWidgets.QMainWindow):
         return filename
     """
     def _saveFile(self, filename):
+        label_file = osp.splitext(filename)[0] + ".json"
+        if self.output_dir:
+            label_file_without_path = osp.basename(label_file)
+            label_file = osp.join(self.output_dir, label_file_without_path)
+        corruption_layout = self.corruption_dock.widget().layout()
+        if hasattr(self, 'canvas_label') and self.canvas_label:
+            corruption_layout.removeWidget(self.canvas_label)
+            self.canvas_label.deleteLater()
+            self.canvas_label = None
+        if QtCore.QFile.exists(label_file) and LabelFile.is_label_file(label_file):
+            original_pixmap = self.canvas.grab()
+            scaled_pixmap = original_pixmap.scaled(
+                original_pixmap.width() // 3,
+                original_pixmap.height() // 3,
+                QtCore.Qt.KeepAspectRatio,
+                QtCore.Qt.SmoothTransformation
+            )
+            label = QtWidgets.QLabel()
+            label.setPixmap(scaled_pixmap)
+            patch_height_index = corruption_layout.indexOf(self.patchHeightInput)
+            corruption_layout.insertWidget(patch_height_index + 1, label)
+            self.canvas_label = label
+
         if filename and self.saveLabels(filename):
             self.addRecentFile(filename)
             self.setClean()
+
+    def queue_saveFile(self):
+        for filename in MainWindow.queue_label.keys():
+            if filename is not None:
+                filename = osp.splitext(filename)[0] + ".json"
+                if self.queue_saveLabels(filename):
+                    #filename = osp.splitext(filename)[0] + ".json"
+                    self.addRecentFile(filename)
+                    self.setClean()
+
+        label_file = osp.splitext(self.filename)[0] + ".json"
+        corruption_layout = self.corruption_dock.widget().layout()
+        if hasattr(self, 'canvas_label') and self.canvas_label:
+            corruption_layout.removeWidget(self.canvas_label)
+            self.canvas_label.deleteLater()
+            self.canvas_label = None
+        if QtCore.QFile.exists(label_file) and LabelFile.is_label_file(label_file):
+            original_pixmap = self.canvas.grab()
+            scaled_pixmap = original_pixmap.scaled(
+                original_pixmap.width() // 3,
+                original_pixmap.height() // 3,
+                QtCore.Qt.KeepAspectRatio,
+                QtCore.Qt.SmoothTransformation
+            )
+            label = QtWidgets.QLabel()
+            label.setPixmap(scaled_pixmap)
+            patch_height_index = corruption_layout.indexOf(self.patchHeightInput)
+            corruption_layout.insertWidget(patch_height_index + 1, label)
+            self.canvas_label = label
 
     def closeFile(self, _value=False):
         if not self.mayContinue():
@@ -2225,7 +2465,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def mayContinue(self):
         if not self.dirty:
             return True
-        self.saveFile()
+        #self.saveFile()
         return True
 
     def errorMessage(self, title, message):
