@@ -1246,7 +1246,10 @@ class Canvas(QtWidgets.QWidget):
                 if (self.class_text != "CLEAN") and (self.intensity_text == "CLEAN") and (self.class_text is not None):
                     self.intensity_text = "BLURRY"
                 self.classAndIntensityChanged.emit(self.class_text, self.intensity_text)
-
+        if ev.key() == QtCore.Qt.Key_Space:
+            self.shapes_visible = not self.shapes_visible
+            self.update()
+            
         if self.drawing():
             if int(modifiers) == 0:
                 self.snapping = True
