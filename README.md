@@ -1,7 +1,7 @@
 # Patch Annotation Tool
 
 
-## 설치방법 (Window)
+## 설치방법 (Window, Linux)
 
 
 Anaconda 설치
@@ -29,7 +29,7 @@ pip install -e .
 labelme
 ```
 
-## 사용방법 (Window)
+## 사용방법 
 
 1. 좌상단 Open Dir 아이콘을 통해 이미지가 존재하는 폴더 업로드
 2. ctrl+shift+c 클릭 시 패치 기반 어노테이션 기능 활성화
