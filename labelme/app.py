@@ -1561,7 +1561,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return False
     def queue_saveLabels(self, filename):
         lf = LabelFile()
-        img_name = osp.splitext(filename)[0] + ".png"
+        img_name = osp.splitext(filename)[0] + ".jpg"
         
         shapes = MainWindow.queue_label[img_name]
         #shapes = [[format_shape(item.shape()) for item in self.labelList][-1]]
