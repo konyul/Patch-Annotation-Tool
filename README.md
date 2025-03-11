@@ -1,10 +1,11 @@
 # Patch Annotation Tool
 
 
-## 설치방법 (Window, Linux)
-
+## 설치방법 (Window)
 
 Anaconda 설치
+
+명령프롬프트 실행
 
 Conda 가상환경 생성
 ```
