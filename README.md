@@ -23,6 +23,7 @@ git clone https://github.com/konyul/Patch-Annotation-Tool.git
 ```
 cd Patch-Annotation-Tool
 pip install -e .
+pip install PyQt5
 ```
 
 명령어 실행 (Patch-Annotation-Tool 외부 폴더에서 실행)
